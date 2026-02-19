@@ -20,46 +20,53 @@
         <h3>Respuesta Raw (Primeros caracteres):</h3>
         <pre id="raw-preview">Esperando...</pre>
     </div>
-
+</body>
     <script>
-      async function cargarDatos() {
+        const PROXY_URL = 'https://warframe-proxy.adrtirram.workers.dev/';
+
+        async function cargarDatos() {
             const estadoDiv = document.getElementById('estado');
             const rawDiv = document.getElementById('raw-preview');
             
             try {
-                estadoDiv.textContent = "Contactando satélite...";
+                estadoDiv.textContent = "Conectando...";
                 
                 const res = await fetch(PROXY_URL);
-                const textoRaw = await res.text(); // Leemos como texto primero
+                
+                // Si la respuesta no es OK (es 404 o 500), leemos el mensaje de error del cuerpo
+                if (!res.ok) {
+                    const errorTexto = await res.text();
+                    throw new Error(`Fallo en el servidor (${res.status}): ${errorTexto}`);
+                }
+                
+                // Si llegamos aquí, es que todo fue bien
+                const datos = await res.json();
 
-                console.log("Respuesta recibida:", textoRaw.substring(0, 100)); // Ver en consola
-
-                // Intentamos convertir ese texto a JSON
-                let datos;
-                try {
-                    datos = JSON.parse(textoRaw);
-                } catch (e) {
-                    // Si falla aquí, es que el texto no es JSON (es un error HTML o vacío)
-                    throw new Error(`No es JSON válido. El servidor respondió: "${textoRaw.substring(0,50)}..."`);
+                // Verificar si Warframe devolvió error interno
+                if (datos.error) {
+                     throw new Error(`El Proxy reporta: ${datos.error}`);
                 }
 
-                // SI LLEGAMOS AQUÍ, TODO FUE ÉXITO
+                // MOSTRAR DATOS
                 const fecha = new Date(parseInt(datos.Time) * 1000).toLocaleString();
                 estadoDiv.innerHTML = `
-                    <div style="color: #4CAF50">✅ <strong>Conexión Exitosa</strong></div>
-                    <strong>Hora Servidor:</strong> ${fecha}<br>
-                    <strong>Build:</strong> ${datos.BuildLabel}
+                    <div style="color: #4CAF50; font-size: 1.2em;">✅ CONEXIÓN ESTABLECIDA</div>
+                    <br>
+                    <strong>Fecha Servidor:</strong> ${fecha}<br>
+                    <strong>Versión:</strong> ${datos.BuildLabel}<br>
+                    <strong>Eventos activos:</strong> ${datos.Events ? datos.Events.length : 0}
                 `;
                 
-                rawDiv.textContent = JSON.stringify(datos, null, 2).substring(0, 2000);
+                rawDiv.textContent = JSON.stringify(datos, null, 2).substring(0, 3000);
+                console.log("Datos recibidos correctamente:", datos);
 
             } catch (err) {
-                console.error(err);
-                estadoDiv.innerHTML = `<div style="color: #ff5555">❌ Error: ${err.message}</div>`;
-                // Si hay error, mostramos qué nos llegó realmente en la caja de abajo
-                rawDiv.textContent = "Error de lectura.";
+                console.error("Error detallado:", err);
+                estadoDiv.innerHTML = `<div style="color: #ff5555; font-weight: bold;">❌ ERROR CRÍTICO</div><p>${err.message}</p>`;
+                rawDiv.textContent = "Revisa la consola (F12) para más detalles.";
             }
         }
+
+        cargarDatos();
     </script>
-</body>
 </html>
