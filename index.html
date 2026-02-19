@@ -3,113 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estado de Warframe</title>
+    <title>Warframe Status</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #f0f0f0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .card { background: #2a2a2a; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #444; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        h1 { color: #5bc0de; text-align: center; }
-        h3 { color: #f0ad4e; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        .status-ok { color: #5cb85c; font-weight: bold; }
-        .status-error { color: #d9534f; font-weight: bold; }
-        pre { background: #111; padding: 10px; border-radius: 5px; overflow-x: auto; color: #81f499; font-size: 12px; max-height: 400px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        body { font-family: sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        .card { background: #2d2d2d; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #444; }
+        h1 { color: #4dc9ff; margin-top: 0; }
+        .ok { color: #5eff7e; font-weight: bold; }
+        .error { color: #ff5e5e; font-weight: bold; }
+        pre { background: #000; padding: 10px; color: #0f0; overflow: auto; max-height: 300px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>🛰️ Warframe Dashboard</h1>
-    
-    <!-- Estado de la Conexión -->
-    <div id="connection-status" class="card">
-        Cargando datos del sistema origen...
-    </div>
-
-    <!-- Panel de Información Procesada -->
-    <div id="info-panel" class="card" style="display:none;">
-        <div class="grid">
-            <div>
-                <strong>🌍 Cetus (Tierra):</strong><br>
-                <span id="cetus-time">--</span>
-            </div>
-            <div>
-                <strong>🔥 Fisuras Activas:</strong><br>
-                <span id="fissures-count">--</span>
-            </div>
-            <div>
-                <strong>🚀 Invasiones:</strong><br>
-                <span id="invasions-count">--</span>
-            </div>
-            <div>
-                <strong>⚔️ Sortie (Incursión):</strong><br>
-                <span id="sortie-boss">--</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Datos RAW para depuración -->
     <div class="card">
-        <h3>📄 JSON RAW (Datos Crudos)</h3>
-        <pre id="raw-json">Esperando respuesta...</pre>
+        <h1>📡 Estado de Warframe</h1>
+        <div id="status">Cargando...</div>
     </div>
-</div>
 
-<script>
-    // 👇👇👇 PON AQUÍ TU URL DEL WORKER 👇👇👇
-    const PROXY_URL = 'https://warframe-proxy.adrtirram.workers.dev/';
+    <div class="card">
+        <h3>📄 Datos Recibidos (JSON):</h3>
+        <pre id="raw">Esperando...</pre>
+    </div>
 
-    async function iniciar() {
-        const statusDiv = document.getElementById('connection-status');
-        const infoPanel = document.getElementById('info-panel');
-        const rawJsonPre = document.getElementById('raw-json');
+    <script>
+        // --- AQUÍ ESTÁ LA SOLUCIÓN AL ERROR "NOT DEFINED" ---
+        // He puesto tu URL directamente aquí. No la borres.
+        const PROXY_URL = 'https://warframe-proxy.adrtirram.workers.dev/';
 
-        try {
-            statusDiv.innerHTML = "📡 Conectando con el Proxy...";
-            
-            const response = await fetch(PROXY_URL);
-            
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`Error ${response.status}: ${text}`);
+        async function cargar() {
+            const statusDiv = document.getElementById('status');
+            const rawDiv = document.getElementById('raw');
+
+            try {
+                statusDiv.innerHTML = "Conectando al proxy...";
+                
+                // 1. Pedimos los datos
+                const res = await fetch(PROXY_URL);
+                
+                // 2. Si falla la red o el servidor
+                if (!res.ok) {
+                    throw new Error(`Error ${res.status}: ${await res.text()}`);
+                }
+
+                const data = await res.json();
+
+                // 3. Comprobamos si el JSON trae error dentro
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // 4. ÉXITO - Mostramos datos bonitos
+                // (La API nueva usa 'timestamp', no 'Time')
+                const fecha = new Date(data.timestamp).toLocaleString();
+                const cetus = data.cetusCycle ? `Cetus: ${data.cetusCycle.shortString}` : "Cetus: --";
+
+                statusDiv.innerHTML = `
+                    <div class="ok">✅ CONEXIÓN CORRECTA</div>
+                    <br>
+                    <strong>Actualizado:</strong> ${fecha}<br>
+                    <strong>Ciclo:</strong> ${cetus}<br>
+                    <strong>Fisuras activas:</strong> ${data.fissures ? data.fissures.length : 0}
+                `;
+
+                // Mostramos el JSON crudo abajo
+                rawDiv.textContent = JSON.stringify(data, null, 2);
+
+            } catch (e) {
+                console.error(e);
+                statusDiv.innerHTML = `<div class="error">❌ ERROR: ${e.message}</div>`;
+                rawDiv.textContent = "Revisa la consola (F12) para ver el error técnico.";
             }
-
-            const data = await response.json();
-
-            // 1. Mostrar mensaje de éxito
-            statusDiv.innerHTML = `<span class="status-ok">✅ CONEXIÓN EXITOSA</span><br>Datos recibidos de: <code>api.warframestat.us</code> via Cloudflare.`;
-            
-            // 2. Rellenar el panel bonito
-            infoPanel.style.display = "block";
-            
-            // Cetus
-            const cetus = data.cetusCycle;
-            document.getElementById('cetus-time').innerText = cetus ? 
-                `${cetus.state.toUpperCase()} - Falta: ${cetus.timeLeft}` : "N/A";
-
-            // Fisuras
-            document.getElementById('fissures-count').innerText = data.fissures ? data.fissures.length : 0;
-
-            // Invasiones
-            document.getElementById('invasions-count').innerText = data.invasions ? data.invasions.length : 0;
-
-            // Sortie
-            document.getElementById('sortie-boss').innerText = data.sortie ? 
-                `${data.sortie.boss} (${data.sortie.faction})` : "No activa";
-
-            // 3. Mostrar el JSON crudo abajo
-            rawJsonPre.textContent = JSON.stringify(data, null, 2);
-
-        } catch (error) {
-            console.error(error);
-            statusDiv.innerHTML = `<span class="status-error">❌ ERROR CRÍTICO</span><br>${error.message}`;
-            rawJsonPre.textContent = "No se pudieron cargar los datos.";
         }
-    }
 
-    // Arrancamos
-    iniciar();
-</script>
-
+        // Arrancar
+        cargar();
+    </script>
 </body>
 </html>
