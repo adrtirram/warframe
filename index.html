@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Warframe API Debug</title>
+  <style>
+    body { background: #0a0a0a; color: #00ff88; font-family: monospace; padding: 20px; }
+    h1 { color: #00d4ff; }
+    button { background: #003366; border: 1px solid #00d4ff; color: #00d4ff; font-family: monospace; font-size: 14px; padding: 8px 16px; cursor: pointer; margin: 4px; }
+    button:hover { background: #00d4ff; color: #000; }
+    #log { background: #111; border: 1px solid #222; padding: 16px; margin-top: 16px; white-space: pre-wrap; font-size: 13px; max-height: 80vh; overflow-y: auto; }
+    .ok  { color: #00ff88; }
+    .err { color: #ff4444; }
+    .inf { color: #00d4ff; }
+    .dat { color: #ffdd88; }
+    select { background: #111; border: 1px solid #00d4ff; color: #00d4ff; font-family: monospace; padding: 7px; margin: 4px; }
+  </style>
+</head>
+<body>
+  <h1>🔧 WARFRAME API — DEBUG CONSOLA</h1>
+  <p style="color:#888">Pulsa un botón para cargar datos. Los resultados aparecen aquí Y en la consola del navegador (F12).</p>
+
+  <div>
+    <label style="color:#888">Plataforma: </label>
+    <select id="plat">
+      <option value="pc">PC</option>
+      <option value="ps4">PS4</option>
+      <option value="xb1">XBOX</option>
+      <option value="swi">Switch</option>
+    </select>
+  </div>
+
+  <div style="margin-top:12px">
+    <button onclick="cargar('alerts')">Alertas</button>
+    <button onclick="cargar('invasions')">Invasiones</button>
+    <button onclick="cargar('fissures')">Fisuras</button>
+    <button onclick="cargar('voidTrader')">Baro Ki'Teer</button>
+    <button onclick="cargar('arbitration')">Arbitraje</button>
+    <button onclick="cargar('cetusCycle')">Cetus</button>
+    <button onclick="cargar('vallisCycle')">Vallis</button>
+    <button onclick="cargar('cambionCycle')">Deimos</button>
+    <button onclick="cargar('zarimanCycle')">Zariman</button>
+    <button onclick="cargar('syndicateMissions')">Syndicatos</button>
+    <button onclick="cargar('events')">Eventos</button>
+    <button onclick="cargar('news')">Noticias</button>
+    <button onclick="cargar('globalUpgrades')">Mejoras Globales</button>
+    <button onclick="cargar('constructionProgress')">Construcción</button>
+    <button onclick="cargarTodo()">⚡ CARGAR TODO</button>
+    <button onclick="limpiar()" style="border-color:#ff4444;color:#ff4444">✖ Limpiar</button>
+  </div>
+
+  <div id="log">Esperando...</div>
+
+  <script>
+    const BASE = 'https://api.warframestat.us';
+    const logDiv = document.getElementById('log');
+
+    function log(msg, tipo='') {
+      const span = document.createElement('span');
+      span.className = tipo;
+      span.textContent = msg + '\n';
+      logDiv.appendChild(span);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(msg);
+    }
+
+    function limpiar() { logDiv.innerHTML = ''; }
+
+    function plat() { return document.getElementById('plat').value; }
+
+    async function cargar(endpoint) {
+      const url = `${BASE}/${plat()}/${endpoint}?language=es`;
+      log(`\n▶ GET ${url}`, 'inf');
+      try {
+        const res = await fetch(url);
+        log(`  Status: ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const json = JSON.stringify(data, null, 2);
+        log(`  ✔ Datos recibidos:`, 'ok');
+        log(json, 'dat');
+        console.group(`✔ ${endpoint}`);
+        console.log(data);
+        console.groupEnd();
+        return data;
+      } catch(e) {
+        log(`  ✖ ERROR: ${e.message}`, 'err');
+        console.error(`✖ ${endpoint}:`, e);
+        return null;
+      }
+    }
+
+    async function cargarTodo() {
+      limpiar();
+      log('══════════════════════════════════', 'inf');
+      log('  CARGANDO TODOS LOS ENDPOINTS    ', 'inf');
+      log('══════════════════════════════════', 'inf');
+      const endpoints = [
+        'alerts','invasions','fissures','voidTrader','arbitration',
+        'cetusCycle','vallisCycle','cambionCycle','zarimanCycle',
+        'syndicateMissions','events','news','globalUpgrades','constructionProgress'
+      ];
+      for (const ep of endpoints) {
+        await cargar(ep);
+        await new Promise(r => setTimeout(r, 300));
+      }
+      log('\n══ FIN ══', 'ok');
+    }
+  </script>
+</body>
+</html>
