@@ -22,36 +22,44 @@
     </div>
 
     <script>
-        // TU URL REAL
-        const PROXY_URL = 'https://warframe-proxy.adrtirram.workers.dev/';
-
-        async function cargarDatos() {
+      async function cargarDatos() {
+            const estadoDiv = document.getElementById('estado');
+            const rawDiv = document.getElementById('raw-preview');
+            
             try {
+                estadoDiv.textContent = "Contactando satélite...";
+                
                 const res = await fetch(PROXY_URL);
-                if (!res.ok) throw new Error("Error al conectar con el proxy");
-                
-                const datos = await res.json();
+                const textoRaw = await res.text(); // Leemos como texto primero
 
-                // 1. Mostrar un dato concreto para verificar (Ej: Fecha del servidor)
+                console.log("Respuesta recibida:", textoRaw.substring(0, 100)); // Ver en consola
+
+                // Intentamos convertir ese texto a JSON
+                let datos;
+                try {
+                    datos = JSON.parse(textoRaw);
+                } catch (e) {
+                    // Si falla aquí, es que el texto no es JSON (es un error HTML o vacío)
+                    throw new Error(`No es JSON válido. El servidor respondió: "${textoRaw.substring(0,50)}..."`);
+                }
+
+                // SI LLEGAMOS AQUÍ, TODO FUE ÉXITO
                 const fecha = new Date(parseInt(datos.Time) * 1000).toLocaleString();
-                document.getElementById('estado').innerHTML = `
-                    <strong>✅ Conexión Exitosa</strong><br>
-                    <strong>Hora del Servidor:</strong> ${fecha}<br>
-                    <strong>Versión del juego:</strong> ${datos.BuildLabel}
+                estadoDiv.innerHTML = `
+                    <div style="color: #4CAF50">✅ <strong>Conexión Exitosa</strong></div>
+                    <strong>Hora Servidor:</strong> ${fecha}<br>
+                    <strong>Build:</strong> ${datos.BuildLabel}
                 `;
-
-                // 2. Mostrar un poco del JSON crudo para que veas que llega todo
-                document.getElementById('raw-preview').textContent = JSON.stringify(datos, null, 2).substring(0, 1000) + "... (y mucho más)";
                 
-                console.log("Datos completos de Warframe:", datos);
+                rawDiv.textContent = JSON.stringify(datos, null, 2).substring(0, 2000);
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('estado').innerHTML = `❌ Error: ${err.message}`;
+                estadoDiv.innerHTML = `<div style="color: #ff5555">❌ Error: ${err.message}</div>`;
+                // Si hay error, mostramos qué nos llegó realmente en la caja de abajo
+                rawDiv.textContent = "Error de lectura.";
             }
         }
-
-        cargarDatos();
     </script>
 </body>
 </html>
