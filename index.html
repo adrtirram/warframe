@@ -3,80 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warframe Status</title>
+    <title>Estado de Warframe</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
-        .card { background: #2d2d2d; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #444; }
-        h1 { color: #4dc9ff; margin-top: 0; }
-        .ok { color: #5eff7e; font-weight: bold; }
-        .error { color: #ff5e5e; font-weight: bold; }
-        pre { background: #000; padding: 10px; color: #0f0; overflow: auto; max-height: 300px; font-size: 12px; }
+        body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+        #status { border: 1px solid #333; padding: 10px; margin-bottom: 20px; background: #222; }
+        #raw { white-space: pre-wrap; word-wrap: break-word; color: #aaa; font-size: 11px; }
+        .error { color: red; font-weight: bold; }
+        .success { color: #0f0; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>📡 Estado de Warframe</h1>
-        <div id="status">Cargando...</div>
-    </div>
-
-    <div class="card">
-        <h3>📄 Datos Recibidos (JSON):</h3>
-        <pre id="raw">Esperando...</pre>
-    </div>
+    <h1>WARFRAME PROXY STATUS</h1>
+    
+    <div id="status">Iniciando conexión...</div>
+    
+    <h3>Respuesta del Servidor (JSON):</h3>
+    <div id="raw">Esperando datos...</div>
 
     <script>
-        // --- AQUÍ ESTÁ LA SOLUCIÓN AL ERROR "NOT DEFINED" ---
-        // He puesto tu URL directamente aquí. No la borres.
-        const PROXY_URL = 'https://warframe-proxy.adrtirram.workers.dev/';
+        // TU URL DEL WORKER
+        const PROXY_URL = "https://warframe-proxy.adrtirram.workers.dev";
 
-        async function cargar() {
+        async function init() {
             const statusDiv = document.getElementById('status');
             const rawDiv = document.getElementById('raw');
 
             try {
-                statusDiv.innerHTML = "Conectando al proxy...";
-                
-                // 1. Pedimos los datos
-                const res = await fetch(PROXY_URL);
-                
-                // 2. Si falla la red o el servidor
-                if (!res.ok) {
-                    throw new Error(`Error ${res.status}: ${await res.text()}`);
+                console.log("Pidiendo datos a: " + PROXY_URL);
+                const response = await fetch(PROXY_URL);
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
                 }
 
-                const data = await res.json();
+                const data = await response.json();
 
-                // 3. Comprobamos si el JSON trae error dentro
                 if (data.error) {
-                    throw new Error(data.error);
+                    throw new Error(`Error del Proxy: ${data.error}`);
                 }
 
-                // 4. ÉXITO - Mostramos datos bonitos
-                // (La API nueva usa 'timestamp', no 'Time')
+                // SI LLEGA AQUÍ, FUNCIONA
                 const fecha = new Date(data.timestamp).toLocaleString();
-                const cetus = data.cetusCycle ? `Cetus: ${data.cetusCycle.shortString}` : "Cetus: --";
-
+                
                 statusDiv.innerHTML = `
-                    <div class="ok">✅ CONEXIÓN CORRECTA</div>
-                    <br>
-                    <strong>Actualizado:</strong> ${fecha}<br>
-                    <strong>Ciclo:</strong> ${cetus}<br>
-                    <strong>Fisuras activas:</strong> ${data.fissures ? data.fissures.length : 0}
+                    <span class="success">CONEXIÓN EXITOSA</span><br>
+                    -----------------------------<br>
+                    HORA: ${fecha}<br>
+                    EVENTOS: ${data.events ? data.events.length : 0}<br>
+                    FISURAS: ${data.fissures ? data.fissures.length : 0}
                 `;
 
-                // Mostramos el JSON crudo abajo
                 rawDiv.textContent = JSON.stringify(data, null, 2);
 
-            } catch (e) {
-                console.error(e);
-                statusDiv.innerHTML = `<div class="error">❌ ERROR: ${e.message}</div>`;
-                rawDiv.textContent = "Revisa la consola (F12) para ver el error técnico.";
+            } catch (err) {
+                console.error(err);
+                statusDiv.innerHTML = `<span class="error">FALLO CRÍTICO:</span> ${err.message}`;
+                rawDiv.textContent = "Mira la consola (F12) para más detalles.";
             }
         }
 
-        // Arrancar
-        cargar();
+        init();
     </script>
+
 </body>
 </html>
