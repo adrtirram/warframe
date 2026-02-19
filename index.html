@@ -3,70 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estado de Warframe (Proxy Propio)</title>
+    <title>Estado de Warframe</title>
     <style>
-        body { font-family: sans-serif; background: #222; color: #eee; padding: 20px; }
-        .box { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
-        pre { white-space: pre-wrap; word-wrap: break-word; font-size: 12px; color: #81f499;}
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #f0f0f0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: #2a2a2a; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #444; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h1 { color: #5bc0de; text-align: center; }
+        h3 { color: #f0ad4e; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .status-ok { color: #5cb85c; font-weight: bold; }
+        .status-error { color: #d9534f; font-weight: bold; }
+        pre { background: #111; padding: 10px; border-radius: 5px; overflow-x: auto; color: #81f499; font-size: 12px; max-height: 400px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     </style>
 </head>
 <body>
-    <h1>📡 Datos de Warframe en Vivo</h1>
-    <p>Conectando a: <code>warframe-proxy.adrtirram.workers.dev</code></p>
+
+<div class="container">
+    <h1>🛰️ Warframe Dashboard</h1>
     
-    <div id="estado" class="box">Cargando datos...</div>
-
-    <div class="box">
-        <h3>Respuesta Raw (Primeros caracteres):</h3>
-        <pre id="raw-preview">Esperando...</pre>
+    <!-- Estado de la Conexión -->
+    <div id="connection-status" class="card">
+        Cargando datos del sistema origen...
     </div>
-</body>
-    <script>
-        const TARGET_URL = "https://content.warframe.com/dynamic/worldState.php"; 
 
-        async function cargarDatos() {
-            const estadoDiv = document.getElementById('estado');
-            const rawDiv = document.getElementById('raw-preview');
+    <!-- Panel de Información Procesada -->
+    <div id="info-panel" class="card" style="display:none;">
+        <div class="grid">
+            <div>
+                <strong>🌍 Cetus (Tierra):</strong><br>
+                <span id="cetus-time">--</span>
+            </div>
+            <div>
+                <strong>🔥 Fisuras Activas:</strong><br>
+                <span id="fissures-count">--</span>
+            </div>
+            <div>
+                <strong>🚀 Invasiones:</strong><br>
+                <span id="invasions-count">--</span>
+            </div>
+            <div>
+                <strong>⚔️ Sortie (Incursión):</strong><br>
+                <span id="sortie-boss">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos RAW para depuración -->
+    <div class="card">
+        <h3>📄 JSON RAW (Datos Crudos)</h3>
+        <pre id="raw-json">Esperando respuesta...</pre>
+    </div>
+</div>
+
+<script>
+    // 👇👇👇 PON AQUÍ TU URL DEL WORKER 👇👇👇
+    const PROXY_URL = 'https://warframe-proxy.adrtirram.workers.dev/';
+
+    async function iniciar() {
+        const statusDiv = document.getElementById('connection-status');
+        const infoPanel = document.getElementById('info-panel');
+        const rawJsonPre = document.getElementById('raw-json');
+
+        try {
+            statusDiv.innerHTML = "📡 Conectando con el Proxy...";
             
-            try {
-                estadoDiv.textContent = "Conectando...";
-                
-                const res = await fetch(PROXY_URL);
-                
-                // Si la respuesta no es OK (es 404 o 500), leemos el mensaje de error del cuerpo
-                if (!res.ok) {
-                    const errorTexto = await res.text();
-                    throw new Error(`Fallo en el servidor (${res.status}): ${errorTexto}`);
-                }
-                
-                // Si llegamos aquí, es que todo fue bien
-                const datos = await res.json();
-
-                // Verificar si Warframe devolvió error interno
-                if (datos.error) {
-                     throw new Error(`El Proxy reporta: ${datos.error}`);
-                }
-
-                // MOSTRAR DATOS
-                const fecha = new Date(parseInt(datos.Time) * 1000).toLocaleString();
-                estadoDiv.innerHTML = `
-                    <div style="color: #4CAF50; font-size: 1.2em;">✅ CONEXIÓN ESTABLECIDA</div>
-                    <br>
-                    <strong>Fecha Servidor:</strong> ${fecha}<br>
-                    <strong>Versión:</strong> ${datos.BuildLabel}<br>
-                    <strong>Eventos activos:</strong> ${datos.Events ? datos.Events.length : 0}
-                `;
-                
-                rawDiv.textContent = JSON.stringify(datos, null, 2).substring(0, 3000);
-                console.log("Datos recibidos correctamente:", datos);
-
-            } catch (err) {
-                console.error("Error detallado:", err);
-                estadoDiv.innerHTML = `<div style="color: #ff5555; font-weight: bold;">❌ ERROR CRÍTICO</div><p>${err.message}</p>`;
-                rawDiv.textContent = "Revisa la consola (F12) para más detalles.";
+            const response = await fetch(PROXY_URL);
+            
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`Error ${response.status}: ${text}`);
             }
-        }
 
-        cargarDatos();
-    </script>
+            const data = await response.json();
+
+            // 1. Mostrar mensaje de éxito
+            statusDiv.innerHTML = `<span class="status-ok">✅ CONEXIÓN EXITOSA</span><br>Datos recibidos de: <code>api.warframestat.us</code> via Cloudflare.`;
+            
+            // 2. Rellenar el panel bonito
+            infoPanel.style.display = "block";
+            
+            // Cetus
+            const cetus = data.cetusCycle;
+            document.getElementById('cetus-time').innerText = cetus ? 
+                `${cetus.state.toUpperCase()} - Falta: ${cetus.timeLeft}` : "N/A";
+
+            // Fisuras
+            document.getElementById('fissures-count').innerText = data.fissures ? data.fissures.length : 0;
+
+            // Invasiones
+            document.getElementById('invasions-count').innerText = data.invasions ? data.invasions.length : 0;
+
+            // Sortie
+            document.getElementById('sortie-boss').innerText = data.sortie ? 
+                `${data.sortie.boss} (${data.sortie.faction})` : "No activa";
+
+            // 3. Mostrar el JSON crudo abajo
+            rawJsonPre.textContent = JSON.stringify(data, null, 2);
+
+        } catch (error) {
+            console.error(error);
+            statusDiv.innerHTML = `<span class="status-error">❌ ERROR CRÍTICO</span><br>${error.message}`;
+            rawJsonPre.textContent = "No se pudieron cargar los datos.";
+        }
+    }
+
+    // Arrancamos
+    iniciar();
+</script>
+
+</body>
 </html>
